@@ -1,0 +1,39 @@
+name: Release to SNAPSHOTS Maven Central
+
+env:
+  MAVEN_ARGS: -B -C -V -ntp -Dhttp.keepAlive=false -e ${{ github.event.inputs.additional_args }}
+  DMP_REPOSITORY: https://github.com/rohanKanojia/docker-maven-plugin
+  DMP_REVISION: pr/release-snapshots-pipeline
+  RELEASE_MAVEN_ARGS: -Prelease -Denforcer.skip=true
+  OSSRHUSERNAME: ${{ secrets.OSSRHUSERNAME }}
+  OSSRHPASSWORD: ${{ secrets.OSSRHPASSWORD }}
+  SIGNINGPASSWORD: ${{ secrets.SIGNINGPASSWORD }}
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release-snapshots:
+    name: Release SNAPSHOT
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2.4.0
+      - name: Setup Java
+        uses: actions/setup-java@v2
+        with:
+          java-version: 11
+          distribution: temurin
+          server-id: sonatype-nexus-snapshots
+          server-username: OSSRHUSERNAME
+          server-password: OSSRHPASSWORD
+          gpg-private-key: ${{ secrets.SIGNINGKEY }}
+          gpg-passphrase: SIGNINGPASSWORD
+      - name: Clone DMP 
+        run: |
+          git clone "$DMP_REPOSITORY" --branch "$DMP_REVISION" docker-maven-plugin
+      - name: Build and Release Project
+        run: |
+          cd docker-maven-plugin
+          ./mvnw ${MAVEN_ARGS} ${RELEASE_MAVEN_ARGS} clean deploy
+
